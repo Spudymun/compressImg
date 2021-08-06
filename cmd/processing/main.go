@@ -8,9 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-
-	//"path/filepath"
-	//"strconv"
 	"strings"
 
 	"github.com/nfnt/resize"
@@ -157,17 +154,19 @@ func imageCompress(
 	format string) bool {
 	/** Read file */
 	file_origin, err := getDecodeFile()
-	defer file_origin.Close()
 	if err != nil {
 		fmt.Println("os.Open(file) error")
 		log.Fatal(err)
 		return false
 	}
+	defer file_origin.Close()
+
 	var origin image.Image
 	var config image.Config
 	var temp io.Reader
+
 	/** Read size */
-	temp, err = getReadSizeFile()
+	_, err = getReadSizeFile()
 	if err != nil {
 		fmt.Println("os.Open(temp)")
 		log.Fatal(err)
@@ -221,11 +220,11 @@ func imageCompress(
 
 	canvas := resize.Thumbnail(width, height, origin, resize.Lanczos3)
 	file_out, err := os.Create(to)
-	defer file_out.Close()
 	if err != nil {
 		log.Fatal(err)
 		return false
 	}
+	defer file_out.Close()
 	if typeImage == 0 {
 		err = png.Encode(file_out, canvas)
 		if err != nil {
