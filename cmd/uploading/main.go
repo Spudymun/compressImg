@@ -27,7 +27,7 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func connToRabbitMQ(id, format string) {
+func connAndSendDataToRabbitMQ(id, format string) {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -62,12 +62,16 @@ func connToRabbitMQ(id, format string) {
 
 func uploadFile(w http.ResponseWriter, r *http.Request) {
 	var fileName []string
-	Uid := ""
+	uId := ""
 	fmt.Println("File Upload Endpoint Hit")
 
 	// Parse our multipart form, 10 << 20 specifies a maximum
 	// upload of 10 MB files.
-	r.ParseMultipartForm(10 << 20)
+	err := r.ParseMultipartForm(10 << 20)
+	if err != nil {
+		fmt.Println(err, "Not parse MultipartForm")
+		return
+	}
 	// FormFile returns the first file for the given key `myFile`
 	// it also returns the FileHeader so we can get the Filename,
 	// the Header and the size of the file
@@ -85,15 +89,15 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 	fileName = strings.Split(handler.Filename, ".")
 	// Create a temporary file within our temp-images directory that follows
 	// a particular naming pattern
-	Uid = genUUID()
+	uId = genUUID()
 	if !exists(path) {
 		err := os.Mkdir(path, 0777)
 		if err != nil {
 			panic(err)
 		}
 	}
-	sFileName := "upload_" + Uid + "." + fileName[1]
-	f, err := os.Create(filepath.Join(path, sFileName))
+	newFileName := "upload_" + uId + "." + fileName[1]
+	f, err := os.Create(filepath.Join(path, newFileName))
 	if err != nil {
 		panic(err)
 	}
@@ -110,10 +114,15 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 	// write this byte array to our temporary file
-	f.Write(fileBytes)
+	_, err = f.Write(fileBytes)
+	if err != nil {
+		fmt.Println(err, "Not write byte array to temporary file")
+		return
+	}
 	// return that we have successfully uploaded our file!
 	fmt.Fprintf(w, "Successfully Uploaded File\n")
-	connToRabbitMQ(Uid, fileName[1])
+
+	connAndSendDataToRabbitMQ(uId, fileName[1])
 }
 
 func setupRoutes() {

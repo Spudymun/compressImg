@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "cmd\\processing"
+		},
+		{
+			"path": "cmd\\uploading"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"workbench.editor.showTabs": false,
+	}
+}
