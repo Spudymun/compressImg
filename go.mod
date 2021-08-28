@@ -1,4 +1,4 @@
-module github.com/Spudymun/useRabbitMQ
+module github.com/Spudymun/compressImg
 
 go 1.16
 
