@@ -6,4 +6,4 @@ For running app, you must change constants of paths to suitable for you. And als
 
 		docker run -d --hostname my-rabbit --name some-rabbit -p 15672:15672 -p 5672:5672 rabbitmq:3-management
 		
-There is a index.html for comfortable uploading pictures. Now you can run two microservices for 
+There is a index.html for comfortable uploading pictures. Now you can run two microservices and compress the images.
