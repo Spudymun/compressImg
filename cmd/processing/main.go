@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/nfnt/resize"
@@ -15,9 +16,22 @@ import (
 )
 
 var (
-	Uid    string
-	format string
+	uId string
 )
+
+type Format int
+
+func (f Format) String() string {
+	switch f {
+	case 0:
+		return "png"
+	case 1:
+		return "jpg"
+	default:
+		fmt.Println("Unknown type")
+		return ""
+	}
+}
 
 const (
 	pathIn  = "D:/Go/Task/images/upload_"
@@ -88,11 +102,16 @@ func connAndListenToRabbitMQ() {
 			sBody := strings.Split(string(d.Body), ",")
 			fmt.Println(sBody)
 
-			Uid = sBody[0]
-			format = sBody[1]
+			uId = sBody[0]
+			var f Format
+			format, err := strconv.Atoi(sBody[1])
+			if err != nil {
+				fmt.Println(err, "Converting error")
+			}
+			f = Format(format)
 			log.Printf("Received a message: %s", d.Body)
 
-			inputArgs = NewInputArgs(pathOut+Uid+".", pathIn+Uid+"."+format, 70, 300)
+			inputArgs = NewInputArgs(pathOut+uId+".", pathIn+uId+"."+f.String(), 70, 300)
 			executeCompress()
 		}
 	}()
@@ -141,7 +160,7 @@ func executeCompress() {
 	inputArgs.OutputPath = inputArgs.OutputPath + format
 	fmt.Println("OutputPath", inputArgs.OutputPath)
 
-	if !imageCompress(&ImageCompressParams{
+	compressParams := &ImageCompressParams{
 		func() (io.Reader, error) {
 			return os.Open(inputArgs.LocalPath)
 		},
@@ -151,7 +170,8 @@ func executeCompress() {
 		inputArgs.OutputPath,
 		inputArgs.Quality,
 		inputArgs.Width,
-		format}) {
+		format}
+	if imageCompress(compressParams) != nil {
 		fmt.Println("Failed to generate thumbnail")
 	} else {
 		fmt.Println("Thumbnail generated successfully " + inputArgs.OutputPath)
@@ -160,13 +180,13 @@ func executeCompress() {
 	//}
 }
 
-func imageCompress(params *ImageCompressParams) bool {
+func imageCompress(params *ImageCompressParams) error {
 	/** Read file */
 	originFile, err := params.GetDecodeFile()
 	if err != nil {
 		fmt.Println("os.Open(file) error")
 		log.Fatal(err)
-		return false
+		return err
 	}
 	defer originFile.Close()
 
@@ -180,10 +200,10 @@ func imageCompress(params *ImageCompressParams) bool {
 	if err != nil {
 		fmt.Println("os.Open(temp)")
 		log.Fatal(err)
-		return false
+		return err
 	}
 
-	format = strings.ToLower(format)
+	format := params.Format
 	/** jpg format */
 	if format == "jpg" || format == "jpeg" {
 		typeImage = 1
@@ -191,18 +211,18 @@ func imageCompress(params *ImageCompressParams) bool {
 		if err != nil {
 			fmt.Println("jpeg.Decode(originFile)")
 			log.Fatal(err)
-			return false
+			return err
 		}
 		temp, err = params.GetReadSizeFile()
 		if err != nil {
 			fmt.Println("os.Open(temp)")
 			log.Fatal(err)
-			return false
+			return err
 		}
 		config, err = jpeg.DecodeConfig(temp)
 		if err != nil {
 			fmt.Println("jpeg.DecodeConfig(temp)")
-			return false
+			return err
 		}
 	} else if format == "png" {
 		typeImage = 0
@@ -210,18 +230,18 @@ func imageCompress(params *ImageCompressParams) bool {
 		if err != nil {
 			fmt.Println("png.Decode(originFile)")
 			log.Fatal(err)
-			return false
+			return err
 		}
 		temp, err = params.GetReadSizeFile()
 		if err != nil {
 			fmt.Println("os.Open(temp)")
 			log.Fatal(err)
-			return false
+			return err
 		}
 		config, err = png.DecodeConfig(temp)
 		if err != nil {
 			fmt.Println("png.DecodeConfig(temp)")
-			return false
+			return err
 		}
 	}
 	/** Do proportional scaling */
@@ -232,7 +252,7 @@ func imageCompress(params *ImageCompressParams) bool {
 	outFile, err := os.Create(params.To)
 	if err != nil {
 		log.Fatal(err)
-		return false
+		return err
 	}
 	defer outFile.Close()
 
@@ -240,17 +260,17 @@ func imageCompress(params *ImageCompressParams) bool {
 		err = png.Encode(outFile, canvas)
 		if err != nil {
 			fmt.Println("Failed to compress image")
-			return false
+			return err
 		}
 	} else {
 		err = jpeg.Encode(outFile, canvas, &jpeg.Options{Quality: params.Quality})
 		if err != nil {
 			fmt.Println("Failed to compress image")
-			return false
+			return err
 		}
 	}
 
-	return true
+	return nil
 }
 
 func failOnError(err error, msg string) {

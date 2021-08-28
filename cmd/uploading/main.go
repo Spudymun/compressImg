@@ -122,12 +122,24 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 	// return that we have successfully uploaded our file!
 	fmt.Fprintf(w, "Successfully Uploaded File\n")
 
-	connAndSendDataToRabbitMQ(uId, fileName[1])
+	if strings.ToLower(fileName[1]) == "png" {
+		connAndSendDataToRabbitMQ(uId, "0")
+	} else if strings.ToLower(fileName[1]) == "jpg" || strings.ToLower(fileName[1]) == "jpeg" {
+		connAndSendDataToRabbitMQ(uId, "1")
+	} else {
+		fmt.Println("Unkown type for sending")
+		return
+	}
+
 }
 
 func setupRoutes() {
 	http.HandleFunc("/upload", uploadFile)
-	http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 }
 
 func genUUID() string {
